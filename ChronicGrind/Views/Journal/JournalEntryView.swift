@@ -49,28 +49,11 @@ struct JournalEntryView: View {
     /// State variable to control the visibility of the metrics info popover.
     @State private var showMetricsInfoPopover: Bool = false
     
-    // MARK: - Helper Methods
-    
-    /// Converts a heart rate zone integer to a descriptive string.
-    /// - Parameter zone: The heart rate zone number (optional).
-    /// - Returns: A string describing the zone or nil if zone is nil.
-    private func zoneDescription(for zone: Int?) -> String? {
-        guard let zone else { return nil }
-        switch zone {
-        case 1: return "Very Light"
-        case 2: return "Light"
-        case 3: return "Moderate"
-        case 4: return "Hard"
-        case 5: return "Maximum"
-        default: return "Unknown"
-        }
-    }
-    
     // MARK: - Body
     
     var body: some View {
-        ZStack{
-            Color.proBackground.ignoresSafeArea(.all)
+        ZStack {
+            Color.proBackground.ignoresSafeArea(edges: .all)
             VStack(alignment: .leading, spacing: 10) {
                 headerSection
                 if let splitTimes = history.splitTimes, !splitTimes.isEmpty {
@@ -85,7 +68,7 @@ struct JournalEntryView: View {
             .background(Material.thin)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-           
+            .listRowSeparator(.hidden)
             // Support dynamic type sizes for accessibility.
             .dynamicTypeSize(...DynamicTypeSize.accessibility3)
             .accessibilityElement(children: .contain)
@@ -135,9 +118,11 @@ struct JournalEntryView: View {
                 .padding(.bottom, 2)
                 .accessibilityAddTraits(.isHeader)
             
-            let sortedSplitTimes = splitTimes.sorted { $0.order < $1.order }
-            ForEach(sortedSplitTimes.indices, id: \.self) { index in
-                if let exercise = sortedSplitTimes[index].exercise {
+            ForEach(splitTimes.indices, id: \.self) { index in
+                let split = splitTimes[index]
+                let exerciseIndex = split.order
+                if exerciseIndex < workout.sortedExercises.count,
+                   let exercise = workout.sortedExercises[safe: exerciseIndex] {
                     let roundNumber = workout.roundsEnabled && workout.roundsQuantity > 1 ? (index / workout.sortedExercises.count + 1) : nil
                     HStack {
                         Image(systemName: "timer")
@@ -147,13 +132,13 @@ struct JournalEntryView: View {
                             .font(.subheadline)
                             .foregroundStyle(.primary)
                         Spacer()
-                        Text(formatTime(value: sortedSplitTimes[index].durationInSeconds, isSeconds: true))
+                        Text(formatTime(value: split.durationInSeconds, isSeconds: true))
                             .font(.subheadline.monospacedDigit())
                             .foregroundStyle(.primary)
                     }
                     .accessibilityIdentifier("splitTime_\(index)")
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel(roundNumber != nil ? "Round \(roundNumber!), \(exercise.name), Split Time: \(formatTime(value: sortedSplitTimes[index].durationInSeconds, isSeconds: true))" : "\(exercise.name), Split Time: \(formatTime(value: sortedSplitTimes[index].durationInSeconds, isSeconds: true))")
+                    .accessibilityLabel(roundNumber != nil ? "Round \(roundNumber!), \(exercise.name), Split Time: \(formatTime(value: split.durationInSeconds, isSeconds: true))" : "\(exercise.name), Split Time: \(formatTime(value: split.durationInSeconds, isSeconds: true))")
                 }
             }
         }
@@ -379,6 +364,21 @@ struct JournalEntryView: View {
             return String(format: "%02d:%02d.%02d", minutes, seconds, milliseconds)
         }
     }
+    
+    /// Converts a heart rate zone integer to a descriptive string.
+    /// - Parameter zone: The heart rate zone number (optional).
+    /// - Returns: A string describing the zone or nil if zone is nil.
+    private func zoneDescription(for zone: Int?) -> String? {
+        guard let zone else { return nil }
+        switch zone {
+        case 1: return "Very Light"
+        case 2: return "Light"
+        case 3: return "Moderate"
+        case 4: return "Hard"
+        case 5: return "Maximum"
+        default: return "Unknown"
+        }
+    }
 }
 
 /// A reusable view explaining advanced metrics.
@@ -420,5 +420,13 @@ struct AdvancedMetricsExplanationView: View {
             .padding()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Extensions
+
+extension Collection {
+    subscript(safe index: Index) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }

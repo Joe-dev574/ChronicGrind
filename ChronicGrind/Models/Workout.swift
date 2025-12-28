@@ -17,6 +17,7 @@ final class Workout {
     var lastSessionDuration: Double  = 0.0
     var dateCreated: Date = Date()
     var dateCompleted: Date? = nil
+    var order: Int = 0
     
     @Relationship(deleteRule: .nullify)
     var category: Category? = nil
@@ -46,7 +47,8 @@ final class Workout {
         dateCompleted: Date? = nil,
         category: Category? = nil,
         roundsEnabled: Bool = false,
-        roundsQuantity: Int = 1
+        roundsQuantity: Int = 1,
+        order: Int = 0
     ) {
         self.title = title
         self.exercises = exercises
@@ -56,6 +58,7 @@ final class Workout {
         self.category = category
         self.roundsEnabled = roundsEnabled
         self.roundsQuantity = roundsQuantity
+        self.order = order
     }
     
     var sortedExercises: [Exercise] {

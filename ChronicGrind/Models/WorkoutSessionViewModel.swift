@@ -45,31 +45,32 @@ final class WorkoutSessionViewModel {
     var currentExerciseIndex: Int = 0
     var currentRound: Int = 1
     var isRunning: Bool = false
+    var hasStarted: Bool = false
     var currentHeartRate: Double = 0.0
     var caloriesBurned: Double = 0.0
     var distanceMeters: Double = 0.0
     var dominantZone: Int?
 
     // MARK: - Derived UI State
-        var displayedDuration: TimeInterval { secondsElapsed }
+    var displayedDuration: TimeInterval { secondsElapsed }
     
     var currentExerciseText: String {
-            if let exercise = currentExercise {
-                return exercise.name
-            }
-            return workout.effectiveExercises.isEmpty ? "Timing general activity..." : "Transition"
+        if let exercise = currentExercise {
+            return exercise.name
         }
+        return workout.sortedExercises.isEmpty ? "Timing general activity..." : "Transition"
+    }
     
     // MARK: - Crown Support (Floating-Point for Digital Crown precision)
     var crownAccumulator: Double = 0.0
 
     var isPaused: Bool { !isRunning }
 
-        var isCompleting: Bool = false
+    var isCompleting: Bool = false
 
-        var showMetrics: Bool {
-            currentHeartRate > 0 || dominantZone != nil
-        }
+    var showMetrics: Bool {
+        currentHeartRate > 0 || dominantZone != nil
+    }
     
     // MARK: - Derived Computed Properties (exposed to View)
     var roundsEnabled: Bool {
@@ -77,36 +78,37 @@ final class WorkoutSessionViewModel {
     }
 
     var totalExercises: Int {
-        workout.exercises?.count ?? 1
+        workout.sortedExercises.count
     }
 
     var currentExercise: Exercise? {
-        guard let exercises = workout.exercises,
-            currentExerciseIndex < exercises.count
+        guard !workout.sortedExercises.isEmpty,
+              currentExerciseIndex < workout.sortedExercises.count
         else { return nil }
-        return exercises[currentExerciseIndex]
+        return workout.sortedExercises[currentExerciseIndex]
     }
+    
     var showSecondaryEndButton: Bool {
-            isRunning && !isCompleting
-        }
-    var finalDisplayedWorkoutDurationSeconds: Double = 0.0
+        hasStarted && !isCompleting
+    }
 
-        var primaryButtonText: String {
-            isRunning ? "Next" : "Start Workout"
-        }
+    var primaryButtonText: String {
+        isRunning ? "Next" : "Start Workout"
+    }
 
-        var primaryButtonAction: () async -> Void {
-            isRunning ? { await self.nextExercise() } : { await self.startWorkout() }
-        }
+    var primaryButtonAction: () async -> Void {
+        isRunning ? { await self.nextExercise() } : { await self.startWorkout() }
+    }
 
-        var primaryButtonAccessibilityID: String { "primaryWorkoutButton" }
-        var primaryButtonAccessibilityHint: String {
-            isRunning ? "Advance to the next exercise" : "Begin the workout session"
-        }
+    var primaryButtonAccessibilityID: String { "primaryWorkoutButton" }
+    
+    var primaryButtonAccessibilityHint: String {
+        isRunning ? "Advance to the next exercise" : "Begin the workout session"
+    }
 
-        // Optional metric placeholders — implement as needed
-        var intensityScore: Double? { nil }
-        var progressPulseScore: Double? { nil }
+    // Optional metric placeholders — implement as needed
+    var intensityScore: Double? { nil }
+    var progressPulseScore: Double? { nil }
     
     // MARK: - Private State
     private var heartRateTask: Task<Void, Never>?
@@ -119,20 +121,23 @@ final class WorkoutSessionViewModel {
     init(workout: Workout) {
         self.workout = workout
     }
+    
     // MARK: - Lifecycle
-        func onAppear() {
-            // Dependencies are injected in view's .onAppear — no additional work needed here
-        }
+    func onAppear() {
+        // Dependencies are injected in view's .onAppear — no additional work needed here
+    }
 
-        func onDisappear() {
-            if isRunning {
-                endWorkoutSession()
-            }
+    func onDisappear() {
+        if isRunning {
+            endWorkoutSession()
         }
+    }
+    
     // MARK: - Public API
 
     /// Starts the workout session. Behaviour differs slightly between iPhone and premium Watch.
     func startWorkout() async {
+        hasStarted = true
         isRunning = true
         secondsElapsed = 0.0
         workoutStartDate = Date()
@@ -142,20 +147,20 @@ final class WorkoutSessionViewModel {
 
         // HealthKit session – always start on iPhone, only on Watch if premium
         #if os(watchOS)
-            if purchaseManager?.isSubscribed == true {
-                await healthKitManager?.startWatchIndependentWorkoutSession(
-                    workout: workout
-                )
-          //      startLiveHeartRateUpdates()
-            }
+        if purchaseManager?.isSubscribed == true {
+            await healthKitManager?.startWatchIndependentWorkoutSession(
+                workout: workout
+            )
+            startLiveHeartRateUpdates()
+        }
         #else
-            await healthKitManager?.startPhoneWorkoutSession(workout: workout)
-
+        await healthKitManager?.startPhoneWorkoutSession(workout: workout)
         #endif
         startLiveHeartRateUpdates()
     }
 
     /// Advances to the next exercise/round. Records split time and plays haptic on premium Watch.
+    /// Automatically completes the workout if this advance reaches the end.
     func nextExercise() async {
         guard isRunning else { return }
 
@@ -171,9 +176,9 @@ final class WorkoutSessionViewModel {
 
         // Haptic feedback – only on premium Watch
         #if os(watchOS)
-            if purchaseManager?.isSubscribed == true {
-                WKInterfaceDevice.current().play(.click)
-            }
+        if purchaseManager?.isSubscribed == true {
+            WKInterfaceDevice.current().play(.click)
+        }
         #endif
 
         // Advance logic
@@ -187,16 +192,15 @@ final class WorkoutSessionViewModel {
                     currentRound += 1
                 } else {
                     // Workout complete
-                    Task { await completeWorkout() }
+                    await completeWorkout()
                     return
                 }
             }
-
         } else {
             if currentExerciseIndex + 1 < totalExercises {
                 currentExerciseIndex += 1
             } else {
-                Task { await completeWorkout() }
+                await completeWorkout()
                 return
             }
         }
@@ -206,17 +210,17 @@ final class WorkoutSessionViewModel {
     }
 
     func togglePause() {
-            isRunning.toggle()
-            if isRunning {
-                workoutStartDate = Date().addingTimeInterval(-secondsElapsed)
-                let pausedDuration = Date().timeIntervalSince(currentExerciseStartDate ?? Date())
-                currentExerciseStartDate = Date().addingTimeInterval(-pausedDuration)
-                startTimer()
-            } else {
-                tickerTask?.cancel()
-                tickerTask = nil
-            }
+        isRunning.toggle()
+        if isRunning {
+            workoutStartDate = Date().addingTimeInterval(-secondsElapsed)
+            let pausedDuration = Date().timeIntervalSince(currentExerciseStartDate ?? Date())
+            currentExerciseStartDate = Date().addingTimeInterval(-pausedDuration)
+            startTimer()
+        } else {
+            tickerTask?.cancel()
+            tickerTask = nil
         }
+    }
 
     /// Completes the workout, saves data, writes to HealthKit (platform-appropriate), and posts notification.
     func completeWorkout(early: Bool = false) async {
@@ -251,15 +255,16 @@ final class WorkoutSessionViewModel {
         }
 
         #if os(watchOS)
-            if purchaseManager?.isSubscribed == true {
-                await healthKitManager?.endWatchWorkoutSession()
-            }
+        if purchaseManager?.isSubscribed == true {
+            await healthKitManager?.endWatchWorkoutSession()
+        }
         #else
-            await healthKitManager?.endPhoneWorkoutSession()
+        await healthKitManager?.endPhoneWorkoutSession()
         #endif
 
         NotificationCenter.default.post(name: .workoutDidComplete, object: nil)
         dismissAction()
+        isCompleting = false
     }
 
     /// Ends the session early (user taps "End Workout")
@@ -269,11 +274,11 @@ final class WorkoutSessionViewModel {
         tickerTask = nil
 
         #if os(watchOS)
-            if purchaseManager?.isSubscribed ?? false {
-                Task { await healthKitManager?.endWatchWorkoutSession() }
-            }
+        if purchaseManager?.isSubscribed ?? false {
+            Task { await healthKitManager?.endWatchWorkoutSession() }
+        }
         #else
-            Task { await healthKitManager?.endPhoneWorkoutSession() }
+        Task { await healthKitManager?.endPhoneWorkoutSession() }
         #endif
     }
 
@@ -293,7 +298,7 @@ final class WorkoutSessionViewModel {
         }
     }
     
-    //MARK: START LIVE HEART RATE UPDATES
+    // MARK: - START LIVE HEART RATE UPDATES
     func startLiveHeartRateUpdates() {
         heartRateTask?.cancel()
         heartRateTask = Task { @MainActor in
@@ -318,8 +323,7 @@ final class WorkoutSessionViewModel {
         }
     }
 
-    private static func calculateHeartRateZone(hr: Double, maxHR: Double) -> Int
-    {
+    private static func calculateHeartRateZone(hr: Double, maxHR: Double) -> Int {
         let percent = hr / maxHR
         switch percent {
         case ..<0.6: return 1
@@ -347,4 +351,3 @@ final class WorkoutSessionViewModel {
         }
     }
 }
-

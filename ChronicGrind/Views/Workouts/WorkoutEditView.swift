@@ -13,20 +13,17 @@ import Foundation
 ///
 /// This view allows users to modify the workout's title, category, rounds, and exercises.
 /// Changes are saved to the SwiftData model context upon confirmation.
-/// It handles validation and save errors via local alerts, ensuring data integrity.
-///
-/// - Note: Integrates with the app's core free features for custom workout creation (e.g., "Upper Body A" with exercises/rounds or continuous cardio like "5K Tempo Run").
-/// - Important: All fields are accessible with VoiceOver support, including labels and hints for inclusivity.
+/// It handles validation and save errors via local alerts.
 struct WorkoutEditView: View {
     // MARK: - Environment Properties
     
     /// The SwiftData model context for persisting changes.
     @Environment(\.modelContext) private var context: ModelContext
     
-    /// A binding to dismiss the view after successful save.
+    /// A binding to dismiss the view.
     @Environment(\.dismiss) private var dismiss
     
-    /// The current color scheme (light or dark mode) for adaptive UI.
+    /// The current color scheme (light or dark mode).
     @Environment(\.colorScheme) private var colorScheme
     
     // MARK: - Properties
@@ -54,7 +51,7 @@ struct WorkoutEditView: View {
     /// Flag to show the category picker sheet.
     @State private var showCategoryPicker: Bool = false
     
-    /// Flag to present the alert for validation, success, or errors.
+    /// Flag to present the alert.
     @State private var showAlert: Bool = false
     
     /// Title for alert presentations.
@@ -66,8 +63,6 @@ struct WorkoutEditView: View {
     // MARK: - Initialization
     
     /// Initializes the view with the workout to edit.
-    ///
-    /// Prepopulates state properties from the workout model for editing.
     ///
     /// - Parameter workout: The `Workout` object to edit.
     init(workout: Workout) {
@@ -84,112 +79,166 @@ struct WorkoutEditView: View {
     var body: some View {
         NavigationStack {
             Form {
-                // Title Section
-                Section(header: Text("Title")
-                    .font(.system(size: 18, design: .serif))
+                // Title section.
+                Section(header: Text("Title").font(.system(size: 18, design: .serif))
                     .fontWeight(.semibold)
                     .foregroundStyle(selectedCategory?.categoryColor.color ?? .secondary)) {
-                    TextField("Name of Workout...", text: $title)
-                        .font(.system(.body, design: .serif))
-                        .textInputAutocapitalization(.words)
-                        .foregroundStyle(.primary)
-                        .accessibilityLabel("Workout title")
-                        .accessibilityHint("Enter the name of the workout")
-                }
+                        TextField("Name of Workout...", text: $title)
+                            .font(.system(.body, design: .serif))
+                            .textInputAutocapitalization(.words)
+                            .foregroundStyle(.primary)
+                            .accessibilityLabel("Workout title")
+                            .accessibilityHint("Enter the name of the workout")
+                    }
+                    .accessibilityLabel("Workout title section")
                 
-                // Category Section
-                Section(header: Text("Category")
-                    .font(.system(size: 18, design: .serif))
+                // Category selection section.
+                Section(header: Text("Workout Category").font(.system(size: 18, design: .serif))
                     .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)) {
-                    Button(action: {
-                        showCategoryPicker = true
-                    }) {
-                        HStack {
-                            Text(selectedCategory?.categoryName ?? "Select Category")
-                                .foregroundStyle(.primary)
-                            Spacer()
-                            if let category = selectedCategory {
-                                Label("", systemImage: category.symbol)
-                                    .labelStyle(.iconOnly)
-                                    .foregroundStyle(category.categoryColor.color)
+                    .foregroundStyle(selectedCategory?.categoryColor.color ?? .secondary)) {
+                        Button(action: { showCategoryPicker = true }) {
+                            HStack {
+                                if let category = selectedCategory {
+                                    Image(systemName: category.symbol)
+                                        .foregroundStyle(category.categoryColor.color)
+                                        .font(.title3)
+                                    Text(category.categoryName)
+                                        .foregroundStyle(.primary)
+                                } else {
+                                    Image(systemName: "figure.strengthtraining.traditional")
+                                        .foregroundStyle(.blue)
+                                        .font(.title3)
+                                    Text("Select Category")
+                                        .foregroundStyle(.primary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(.gray)
                             }
+                            .font(.system(.body, design: .serif))
+                        }
+                        .accessibilityLabel(selectedCategory?.categoryName ?? "Select workout category")
+                        .accessibilityHint("Double-tap to choose a category for the workout")
+                        .accessibilityAddTraits(.isButton)
+                    }
+                    .accessibilityLabel("Workout category section")
+                
+                // Rounds configuration section.
+                Section(header: Text("Rounds").font(.system(size: 18, design: .serif))
+                    .fontWeight(.semibold)
+                    .foregroundStyle(selectedCategory?.categoryColor.color ?? .secondary)) {
+                        // Toggle to enable/disable rounds.
+                        Toggle("Enable Rounds", isOn: $roundsEnabled)
+                            .font(.system(.body, design: .serif))
+                            .foregroundStyle(.primary)
+                            .accessibilityLabel("Enable rounds")
+                            .accessibilityHint("Toggle to enable multiple rounds for the workout")
+                            .accessibilityValue(roundsEnabled ? "On" : "Off")
+                        
+                        // Text field for number of rounds, shown if enabled.
+                        if roundsEnabled {
+                            TextField("Number of Rounds", text: $roundsQuantityInput)
+                                .keyboardType(.numberPad)
+                                .font(.system(.body, design: .serif))
+                                .foregroundStyle(.primary)
+                                .accessibilityLabel("Number of rounds")
+                                .accessibilityHint("Enter the number of rounds for the workout")
+                            // Validate input on change.
+                                .onChange(of: roundsQuantityInput) { _, newValue in
+                                    if newValue.isEmpty {
+                                        workout.roundsQuantity = 1 // Temporary default while typing
+                                    } else if let quantity = Int(newValue), quantity > 0 {
+                                        workout.roundsQuantity = quantity
+                                    } else {
+                                        roundsQuantityInput = String(workout.roundsQuantity)
+                                    }
+                                }
+                            // Ensure valid value on submit.
+                                .onSubmit {
+                                    if roundsQuantityInput.isEmpty || Int(roundsQuantityInput) == nil || Int(roundsQuantityInput)! <= 0 {
+                                        roundsQuantityInput = "1"
+                                        workout.roundsQuantity = 1
+                                    }
+                                }
                         }
                     }
-                    .accessibilityLabel("Select category")
-                    .accessibilityHint("Tap to choose a workout category")
-                    .accessibilityAddTraits(.isButton)
-                }
+                    .accessibilityLabel("Rounds section")
                 
-                // Rounds Section
-                Section(header: Text("Rounds")
-                    .font(.system(size: 18, design: .serif))
+                // Exercises list section.
+                Section(header: Text("Exercises").font(.system(size: 18, design: .serif))
                     .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)) {
-                    Toggle("Enable Rounds", isOn: $roundsEnabled)
-                        .accessibilityLabel("Enable rounds")
-                        .accessibilityHint("Toggle to enable multiple rounds for the workout")
-                    
-                    if roundsEnabled {
-                        TextField("Number of Rounds", text: $roundsQuantityInput)
-                            .keyboardType(.numberPad)
-                            .font(.system(.body, design: .serif))
-                            .foregroundStyle(.primary)
-                            .accessibilityLabel("Number of rounds")
-                            .accessibilityHint("Enter the number of rounds")
+                    .foregroundStyle(selectedCategory?.categoryColor.color ?? .secondary)) {
+                        // List of editable exercises.
+                        ForEach($sortedExercises) { $exercise in
+                            HStack {
+                                TextField("Exercise (e.g., Push-ups 10x10)", text: $exercise.name)
+                                    .font(.system(.body, design: .serif))
+                                    .foregroundStyle(.primary)
+                                    .accessibilityLabel("Exercise name")
+                                    .accessibilityHint("Enter the name or description of the exercise")
+                                Spacer()
+                                Image(systemName: "line.3.horizontal")
+                                    .foregroundStyle(.gray)
+                                    .font(.system(size: 18))
+                                    .accessibilityLabel("Reorder exercise")
+                                    .accessibilityHint("Drag to reorder this exercise")
+                                    .accessibilityAddTraits(.isButton)
+                            }
+                            .accessibilityElement(children: .contain)
+                            // Accessibility action for deletion.
+                            .accessibilityAction(named: "Delete") {
+                                if let index = sortedExercises.firstIndex(of: exercise) {
+                                    sortedExercises.remove(at: index)
+                                    updateExerciseOrders()
+                                }
+                            }
+                        }
+                        // Support for deleting via swipe.
+                        .onDelete { offsets in
+                            sortedExercises.remove(atOffsets: offsets)
+                            updateExerciseOrders()
+                        }
+                        // Support for reordering.
+                        .onMove { source, destination in
+                            moveExercises(from: source, to: destination)
+                        }
+                        // Button to add a new exercise.
+                        Button(action: {
+                            let newExercise = Exercise(name: "", order: sortedExercises.count)
+                            sortedExercises.append(newExercise)
+                        }) {
+                            Text("Add Exercise")
+                                .font(.system(.body, design: .serif))
+                                .foregroundStyle(.blue)
+                        }
+                        .accessibilityLabel("Add exercise")
+                        .accessibilityHint("Double-tap to add a new exercise to the workout")
+                        .accessibilityAddTraits(.isButton)
                     }
-                }
-                
-                // Exercises Section
-                Section(header: Text("Exercises")
-                    .font(.system(size: 18, design: .serif))
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)) {
-                    ForEach($sortedExercises) { $exercise in
-                        TextField("Exercise Name", text: $exercise.name)
-                            .font(.system(.body, design: .serif))
-                            .foregroundStyle(.primary)
-                            .accessibilityLabel("Exercise name")
-                            .accessibilityHint("Enter the name of the exercise")
-                    }
-                    .onDelete { indices in
-                        sortedExercises.remove(atOffsets: indices)
-                        updateExerciseOrders()
-                    }
-                    .onMove(perform: moveExercises)
-                    
-                    Button("Add Exercise") {
-                        let newExercise = Exercise(name: "", order: sortedExercises.count)
-                        sortedExercises.append(newExercise)
-                    }
-                    .font(.system(.body, design: .serif))
-                    .foregroundStyle(.blue)
-                    .accessibilityLabel("Add exercise")
-                    .accessibilityHint("Tap to add a new exercise")
-                    .accessibilityAddTraits(.isButton)
-                }
+                    .accessibilityLabel("Exercises section")
             }
             .navigationTitle("Edit Workout")
-            .navigationBarTitleDisplayMode(.inline)
+            .scrollContentBackground(.hidden)
+            .background(Color.proBackground)
+            .accessibilityLabel("Edit workout form")
+            .accessibilityHint("Form to edit workout details, including title, category, rounds, and exercises")
+            // Toolbar with save button.
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        save()
+                    Button(action: { save() }) {
+                        Text("Save")
+                            .font(.system(.body).weight(.medium))
+                            .foregroundStyle(.primary)
+                            .padding(EdgeInsets(top: 3, leading: 8, bottom: 3, trailing: 8))
+                            .background(workout.category?.categoryColor.color ?? .blue)
+                            .cornerRadius(6)
                     }
-                    .font(.system(.body, design: .serif))
-                    .foregroundStyle(.blue)
+                    .buttonStyle(.borderedProminent)
+                    .tint(workout.category?.categoryColor.color ?? .blue)
+                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .accessibilityLabel("Save workout")
-                    .accessibilityHint("Tap to save changes to the workout")
-                }
-                
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                    .font(.system(.body, design: .serif))
-                    .foregroundStyle(.red)
-                    .accessibilityLabel("Cancel")
-                    .accessibilityHint("Tap to discard changes and dismiss")
+                    .accessibilityHint(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Disabled, enter a workout title to enable" : "Double-tap to save changes to the workout")
+                    .accessibilityValue(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Disabled" : "Enabled")
                 }
             }
             // Sheet for selecting category.
@@ -219,7 +268,7 @@ struct WorkoutEditView: View {
         updateExerciseOrders()
     }
     
-    /// Updates the order property of each exercise based on their current position in the list.
+    /// Updates the order property of each exercise based on their current position.
     private func updateExerciseOrders() {
         for (index, exercise) in sortedExercises.enumerated() {
             exercise.order = index
@@ -228,8 +277,8 @@ struct WorkoutEditView: View {
     
     /// Saves changes to the workout and handles validation and errors.
     ///
-    /// Validates the title and rounds input, filters valid exercises, updates the model,
-    /// and saves the context. Presents alerts for feedback and dismisses the view on success after a short delay.
+    /// Validates the title, filters valid exercises, updates the model, and saves the context.
+    /// Presents alerts for feedback and dismisses the view on success after a delay.
     @MainActor
     private func save() {
         // Validate title is not empty.
@@ -238,16 +287,6 @@ struct WorkoutEditView: View {
             alertMessage = "Workout title cannot be empty."
             showAlert = true
             return
-        }
-        
-        // Validate rounds quantity if enabled.
-        if roundsEnabled {
-            guard let quantity = Int(roundsQuantityInput), quantity > 0 else {
-                alertTitle = "Validation Error"
-                alertMessage = "Number of rounds must be a positive integer."
-                showAlert = true
-                return
-            }
         }
         
         // Update workout properties.
@@ -281,9 +320,9 @@ struct WorkoutEditView: View {
 
 // MARK: - Extensions
 
-/// Extension for Optional to provide a bound value for bindings.
+/// Extension for Optional to provide a bound value.
 extension Optional where Wrapped: Hashable {
-    /// A bound optional value for use in SwiftUI bindings.
+    /// A bound optional value for use in bindings.
     var bound: Wrapped? {
         get { self }
         set { self = newValue }

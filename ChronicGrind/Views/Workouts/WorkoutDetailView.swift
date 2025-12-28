@@ -118,7 +118,7 @@ struct WorkoutDetailView: View {
     private var beginWorkoutSection: some View {
         Section {
             NavigationLink {
-                WorkoutSessionView()
+                WorkoutSessionView(workout: workout)
             } label: {
                 HStack {
                     Image(systemName: "play.circle.fill")
