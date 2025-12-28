@@ -5,6 +5,9 @@
 //  Created by Joseph DeWeese on 12/27/25.
 //
 
+/// The settings screen for FitSync, allowing users to configure preferences, manage account settings, and access support resources.
+/// Integrates with SwiftData for category data, HealthKit for sync settings, and StoreKit for app rating.
+/// Ensures accessibility for VoiceOver users and complies with App Store guidelines for production deployment.
 /// The settings screen for MoveSync, allowing users to configure preferences, manage account settings, and access support resources.
 /// Integrates with SwiftData for category data, HealthKit for sync settings, and StoreKit for app rating.
 /// Ensures accessibility for VoiceOver users and complies with App Store guidelines for production deployment.
@@ -16,17 +19,22 @@ import StoreKit
 //MARK: APPEARANCE SETTING
 /// An enumeration of appearance settings for the app’s color scheme, used in the settings picker.
 /// Conforms to `CaseIterable` and `Identifiable` for SwiftUI picker compatibility.
-enum AppAppearanceSetting: String, CaseIterable, Identifiable {
+enum AppearanceSetting: String, CaseIterable, Identifiable {
+    /// Follows the system’s light or dark mode.
     case system = "System Default"
+    /// Forces light mode.
     case light = "Light Mode"
+    /// Forces dark mode.
     case dark = "Dark Mode"
     
+    /// A unique identifier for the appearance setting.
     var id: String { self.rawValue }
     
+    /// The display name for the picker UI.
     var displayAppearance: String {
         return self.rawValue
     }
-    
+    /// The corresponding SwiftUI color scheme, or nil for system default.
     var colorScheme: ColorScheme? {
         switch self {
         case .light:
@@ -39,8 +47,6 @@ enum AppAppearanceSetting: String, CaseIterable, Identifiable {
     }
 }
 
-
-
 /// A SwiftUI view that presents the settings interface for FitSync.
 /// Organizes preferences into sections for general settings, notifications, HealthKit sync, account, about, support, and app rating.
 /// Uses `@AppStorage` for persistent settings and integrates with authentication, HealthKit, and notification managers.
@@ -51,8 +57,6 @@ struct SettingsView: View {
     
     /// The HealthKit manager for syncing workout data.
     @Environment(HealthKitManager.self) private var healthKitManager
-    
-    @Environment(\.requestReview) private var requestReview
     
     
     @Environment(PurchaseManager.self) private var purchaseManager
@@ -79,11 +83,8 @@ struct SettingsView: View {
     /// Persisted hex string for the user’s selected theme color.
     @AppStorage("selectedThemeColorData") private var selectedThemeColorData: String = "#0096FF"
     
-//    /// Persisted unit system (metric or imperial) for measurements.
-//    @AppStorage("unitSystem") private var unitSystem: UnitSystem = .metric
-    
     /// Persisted appearance setting (system, light, or dark) for the app’s color scheme.
-    @AppStorage("appearanceSetting") private var appearanceSetting: AppAppearanceSetting = .system
+    @AppStorage("appearanceSetting") private var appearanceSetting: AppearanceSetting = .system
     
     /// State to show an alert for HealthKit authorization errors.
     @State private var showAuthorizationError: Bool = false
@@ -231,7 +232,7 @@ struct SettingsView: View {
                 }
                 // Appearance picker
                 Picker("Appearance", selection: $appearanceSetting) {
-                    ForEach(AppAppearanceSetting.allCases) { setting in
+                    ForEach(AppearanceSetting.allCases) { setting in
                         Text(setting.displayAppearance).tag(setting)
                     }
                 }
@@ -547,7 +548,16 @@ struct SettingsView: View {
     
     /// Requests an App Store review prompt using StoreKit.
     private func requestAppReview() {
-        requestReview()
-    }
+            if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
+                AppStore.requestReview(in: windowScene)
+            }
+        }
+}
+#Preview {
+    SettingsView()
+        .environment(HealthKitManager.shared)
+        .environment(AuthenticationManager.shared)
+        .environment(ErrorManager.shared)
+        .modelContainer(for: Category.self)
 }
 

@@ -47,16 +47,16 @@ struct ChronicGrindApp: App {
 /// Enum representing the user's appearance preferences.
 ///
 /// This enum maps to SwiftUI's ColorScheme for easy application in views.
-enum AppearanceSetting: String, Codable {
-    case system
-    case light
-    case dark
-    /// The corresponding ColorScheme for the appearance setting.
-    var colorScheme: ColorScheme? {
-        switch self {
-        case .system: return nil  // Follows system setting
-        case .light: return .light
-        case .dark: return .dark
-        }
-    }
-}
+//enum AppearanceSetting: String, Codable {
+//    case system
+//    case light
+//    case dark
+//    /// The corresponding ColorScheme for the appearance setting.
+//    var colorScheme: ColorScheme? {
+//        switch self {
+//        case .system: return nil  // Follows system setting
+//        case .light: return .light
+//        case .dark: return .dark
+//        }
+//    }
+//}
