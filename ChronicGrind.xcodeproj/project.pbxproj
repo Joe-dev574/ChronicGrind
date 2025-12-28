@@ -404,6 +404,8 @@
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = 99S33YCFRB;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "\"ChronicGrind updates your Health data with workout details like distance, calories, and heart rate to provide accurate journaling and analytics.\"";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "\"ChronicGrind updates your Health data with workout details like distance, calories, and heart rate to provide accurate journaling and analytics.\"";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -446,6 +448,8 @@
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = 99S33YCFRB;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "\"ChronicGrind updates your Health data with workout details like distance, calories, and heart rate to provide accurate journaling and analytics.\"";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "\"ChronicGrind updates your Health data with workout details like distance, calories, and heart rate to provide accurate journaling and analytics.\"";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

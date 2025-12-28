@@ -1,11 +1,15 @@
 //
-//  FitSyncContainer.swift
+//  ChronicGrindContainer.swift
 //  ChronicGrind
 //
 
 import SwiftData
 import CloudKit
 import Foundation
+import OSLog
+
+
+
 
 final class ChronicGrindContainer {
     static let container: ModelContainer = {
@@ -24,16 +28,15 @@ final class ChronicGrindContainer {
         
         let fileManager = FileManager.default
         guard let groupURL = fileManager.containerURL(forSecurityApplicationGroupIdentifier: "group.com.tnt.ChronicGrind") else {
-            fatalError("Failed to get App Group container URL. Ensure App Groups are configured.")
+            Logger(subsystem: "com.tnt.ChronicGrind", category: "Container").error("Failed to get App Group URL. Using fallback.")
+            let fallbackURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("ChronicGrind.store")
+            let config = ModelConfiguration(url: fallbackURL, allowsSave: true, cloudKitDatabase: .none)
+            return try! ModelContainer(for: schema, configurations: [config])
         }
         
-        // Ensure the directory exists
+        // Ensure directory exists
         if !fileManager.fileExists(atPath: groupURL.path) {
-            do {
-                try fileManager.createDirectory(at: groupURL, withIntermediateDirectories: true, attributes: nil)
-            } catch {
-                fatalError("Failed to create App Group directory: \(error.localizedDescription)")
-            }
+            try? fileManager.createDirectory(at: groupURL, withIntermediateDirectories: true)
         }
         
         let storeURL = groupURL.appendingPathComponent("ChronicGrind.store")

@@ -7,8 +7,7 @@
 
 import SwiftUI
 import SwiftData
-
-/// The main entry point for the ForgeSync iOS app.
+/// The main entry point for the ChronicGrind iOS app.
 ///
 /// This struct configures the app's scene, injects shared environment objects and values,
 /// and applies user preferences such as appearance settings. It serves as the root of the
@@ -20,19 +19,19 @@ import SwiftData
 /// - Important: The app supports both free and premium tiers, with the Apple Watch app
 ///   available only to premium subscribers.
 @main
-struct ChronicGrind: App {
+struct ChronicGrindApp: App {
     /// The user's preferred appearance setting (system, light, or dark), stored persistently.
     @AppStorage("appearanceSetting") private var appearanceSetting: AppearanceSetting = .system
+    
     /// Shared SwiftData container for the app.
-        private let container: ModelContainer = ChronicGrindContainer.container
-        
-        init() {
-            // Seed default categories asynchronously on launch without capturing self in Task
-            let container = self.container
-            Task {
-                await DefaultDataSeeder.ensureDefaults(in: container)
-            }
+    private let container: ModelContainer = ChronicGrindContainer.container
+    init() {
+        // Seed default categories asynchronously on launch without capturing self in Task
+        let container = self.container
+        Task {
+            await DefaultDataSeeder.ensureDefaults(in: container)
         }
+    }
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -45,7 +44,6 @@ struct ChronicGrind: App {
         }
     }
 }
-
 /// Enum representing the user's appearance preferences.
 ///
 /// This enum maps to SwiftUI's ColorScheme for easy application in views.
@@ -53,7 +51,6 @@ enum AppearanceSetting: String, Codable {
     case system
     case light
     case dark
-    
     /// The corresponding ColorScheme for the appearance setting.
     var colorScheme: ColorScheme? {
         switch self {
@@ -63,4 +60,3 @@ enum AppearanceSetting: String, Codable {
         }
     }
 }
-
