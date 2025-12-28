@@ -36,7 +36,7 @@ final class PurchaseManager {
     var message: String?
     
     // MARK: - Private
-    private let logger = Logger(subsystem: "com.tnt.FitSyncShared", category: "PurchaseManager")
+    private let logger = Logger(subsystem: "com.tnt.ChronicGrindShared", category: "PurchaseManager")
     private var transactionListenerTask: Task<Void, Never>?
     
     private init() {

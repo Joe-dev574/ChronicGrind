@@ -76,7 +76,7 @@ struct WorkoutListScreen: View {
                 //MARK:  WORKOUT LIST
                 VStack(alignment: .leading, spacing: 0) {
                     //MARK:  Workout list section
-                    WorkoutList()
+                    WorkoutList(workouts: allWorkouts)
                         .accessibilityLabel("List of workouts")
                         .accessibilityHint(
                             "Displays filtered workouts; swipe up or down to navigate"

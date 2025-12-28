@@ -8,62 +8,32 @@
 /// The settings screen for FitSync, allowing users to configure preferences, manage account settings, and access support resources.
 /// Integrates with SwiftData for category data, HealthKit for sync settings, and StoreKit for app rating.
 /// Ensures accessibility for VoiceOver users and complies with App Store guidelines for production deployment.
-/// The settings screen for MoveSync, allowing users to configure preferences, manage account settings, and access support resources.
-/// Integrates with SwiftData for category data, HealthKit for sync settings, and StoreKit for app rating.
-/// Ensures accessibility for VoiceOver users and complies with App Store guidelines for production deployment.
 import SwiftUI
 import SwiftData
 import StoreKit
 
 
-//MARK: APPEARANCE SETTING
-/// An enumeration of appearance settings for the app’s color scheme, used in the settings picker.
-/// Conforms to `CaseIterable` and `Identifiable` for SwiftUI picker compatibility.
-enum AppearanceSetting: String, CaseIterable, Identifiable {
-    /// Follows the system’s light or dark mode.
-    case system = "System Default"
-    /// Forces light mode.
-    case light = "Light Mode"
-    /// Forces dark mode.
-    case dark = "Dark Mode"
-    
-    /// A unique identifier for the appearance setting.
-    var id: String { self.rawValue }
-    
-    /// The display name for the picker UI.
-    var displayAppearance: String {
-        return self.rawValue
-    }
-    /// The corresponding SwiftUI color scheme, or nil for system default.
-    var colorScheme: ColorScheme? {
-        switch self {
-        case .light:
-            return .light
-        case .dark:
-            return .dark
-        case .system:
-            return nil
-        }
-    }
-}
+
+
+
 
 /// A SwiftUI view that presents the settings interface for FitSync.
 /// Organizes preferences into sections for general settings, notifications, HealthKit sync, account, about, support, and app rating.
 /// Uses `@AppStorage` for persistent settings and integrates with authentication, HealthKit, and notification managers.
 struct SettingsView: View {
-    //MARK: PROPERTIES
+    // MARK: PROPERTIES
     /// The environment variable to dismiss the view.
     @Environment(\.dismiss) private var dismiss
     
     /// The HealthKit manager for syncing workout data.
     @Environment(HealthKitManager.self) private var healthKitManager
     
+    @Environment(\.requestReview) private var requestReview
     
     @Environment(PurchaseManager.self) private var purchaseManager
     
     /// The SwiftData model context for querying categories.
     @Environment(\.modelContext) private var modelContext
-    
     
     /// The authentication manager for accessing the current user.
     @Environment(AuthenticationManager.self) private var authManager
@@ -83,6 +53,9 @@ struct SettingsView: View {
     /// Persisted hex string for the user’s selected theme color.
     @AppStorage("selectedThemeColorData") private var selectedThemeColorData: String = "#0096FF"
     
+    /// Persisted unit system (metric or imperial) for measurements.
+    @AppStorage("unitSystem") private var unitSystem: UnitSystem = .metric
+    
     /// Persisted appearance setting (system, light, or dark) for the app’s color scheme.
     @AppStorage("appearanceSetting") private var appearanceSetting: AppearanceSetting = .system
     
@@ -91,25 +64,12 @@ struct SettingsView: View {
     
     /// State to show a confirmation alert for sign-out.
     @State private var showSignOutConfirmation: Bool = false
- 
-    /// Persisted raw value for the unit system (metric or imperial) for measurements.
-    @AppStorage("unitSystem") private var unitSystemRaw: String = "Metric"
-
-    /// Computed unit system enum, mapped from the stored raw value.
-    private var unitSystem: UnitSystem {
-        get { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
-        set { unitSystemRaw = newValue.rawValue }
-    }
-      
-    
     
     /// Binding for the theme color picker, converting hex string to `Color` and back.
     private var currentColorForPicker: Binding<Color> {
         Binding(
             get: { Color(hex: selectedThemeColorData) ?? .blue },
-            set: { newValue in
-                selectedThemeColorData = newValue.hex
-            }
+            set: { selectedThemeColorData = $0.hex }
         )
     }
     
@@ -117,7 +77,8 @@ struct SettingsView: View {
     private var themeColor: Color {
         Color(hex: selectedThemeColorData) ?? .blue
     }
-    //MARK:  MAIN BODY
+    
+    // MARK: MAIN BODY
     var body: some View {
         // Main container with gradient background
         ZStack {
@@ -140,28 +101,40 @@ struct SettingsView: View {
                 .tint(themeColor)
             }
         }
+        .preferredColorScheme(appearanceSetting.colorScheme)
     }
+    
     private var premiumSection: some View {
-            Section {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Image(systemName: "crown.fill")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 24, height: 24)
-                            .foregroundStyle(.white)
-                        Text("Premium Subscription")
-                            .font(.title3)
-                            .fontWeight(.medium)
-                            .fontDesign(.serif)
-                            .foregroundStyle(.white)
-                    }
-                    Text("Unlock advanced features like a full independent Watch app.")
-                        .font(.subheadline)
+        Section {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "crown.fill")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
+                        .foregroundStyle(.white)
+                    Text("Premium Subscription")
+                        .font(.title3)
+                        .fontWeight(.medium)
                         .fontDesign(.serif)
                         .foregroundStyle(.white)
-                    if purchaseManager.isSubscribed {
-                        Text("You are Subscribed")
+                }
+                Text("Unlock advanced features like a full independent Watch app.")
+                    .font(.subheadline)
+                    .fontDesign(.serif)
+                    .foregroundStyle(.white)
+                if purchaseManager.isSubscribed {
+                    Text("You are Subscribed")
+                        .font(.headline)
+                        .fontDesign(.serif)
+                        .foregroundStyle(themeColor)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                } else {
+                    NavigationLink(destination: SubscriptionView()) {
+                        Text("Subscribe to Premium")
                             .font(.headline)
                             .fontDesign(.serif)
                             .foregroundStyle(themeColor)
@@ -169,39 +142,31 @@ struct SettingsView: View {
                             .padding()
                             .background(Color.white)
                             .clipShape(RoundedRectangle(cornerRadius: 10))
-                    } else {
-                        NavigationLink(destination: SubscriptionView()) {
-                            Text("Subscribe to Premium")
-                                .font(.headline)
-                                .fontDesign(.serif)
-                                .foregroundStyle(themeColor)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                        }
-                        .accessibilityLabel("Subscribe to Premium")
-                        .accessibilityHint("Navigate to purchase premium subscription")
                     }
+                    .accessibilityLabel("Subscribe to Premium")
+                    .accessibilityHint("Navigate to purchase premium subscription")
                 }
-                .padding()
-                .background(themeColor.gradient)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-            } header: {
-                Text("Premium")
-                    .font(.title3)
-                    .fontWeight(.medium)
-                    .fontDesign(.serif)
-                    .foregroundStyle(themeColor)
-                    .accessibilityAddTraits(.isHeader)
             }
-        }    //MARK: GENERAL SECTION
+            .padding()
+            .background(themeColor.gradient)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+        } header: {
+            Text("Premium")
+                .font(.title3)
+                .fontWeight(.medium)
+                .fontDesign(.serif)
+                .foregroundStyle(themeColor)
+                .accessibilityAddTraits(.isHeader)
+        }
+    }
+    
+    // MARK: GENERAL SECTION
     /// General settings section for theme color, appearance, and units.
     private var generalSection: some View {
         Section {
             // Theme color picker
             HStack {
-                ZStack{
+                ZStack {
                     Rectangle()
                         .fill(themeColor)
                         .frame(width: 35, height: 35)
@@ -219,7 +184,7 @@ struct SettingsView: View {
                     .accessibilityHint("Select a color to customize the app's appearance")
             }
             HStack {
-                ZStack{
+                ZStack {
                     Rectangle()
                         .fill(.primary)
                         .frame(width: 35, height: 35)
@@ -242,8 +207,7 @@ struct SettingsView: View {
             .accessibilityLabel("Appearance mode")
             .accessibilityHint("Select the app's appearance: light, dark, or system default.")
             
-            
-            // MARK:  Units picker
+            // Units picker
             HStack {
                 ZStack {
                     Rectangle()
@@ -256,9 +220,9 @@ struct SettingsView: View {
                         .frame(width: 20, height: 20)
                         .foregroundStyle(.white)
                 }
-                Picker("Units of Measure", selection: $unitSystemRaw) {  // Bind to raw for @AppStorage compatibility
+                Picker("Units of Measure", selection: $unitSystem) {
                     ForEach(UnitSystem.allCases) { system in
-                        Text(system.displayName).tag(system.rawValue)  // Use rawValue as tag
+                        Text(system.displayName).tag(system)
                     }
                 }
             }
@@ -266,7 +230,6 @@ struct SettingsView: View {
             .accessibilityIdentifier("unitSystemPicker")
             .accessibilityLabel("Units of measure")
             .accessibilityHint("Select your preferred units for weight and height.")
-            
         } header: {
             Text("General")
                 .font(.title3)
@@ -278,12 +241,12 @@ struct SettingsView: View {
         }
     }
     
-    // MARK: HealthKit SECTION
+    // MARK: HEALTHKIT SECTION
     private var healthKitSyncSection: some View {
-        Section(content: {
-            Toggle(isOn: $isHealthKitSyncEnabled){
+        Section {
+            Toggle(isOn: $isHealthKitSyncEnabled) {
                 HStack {
-                    ZStack{
+                    ZStack {
                         Rectangle()
                             .fill(.red)
                             .frame(width: 35, height: 35)
@@ -304,38 +267,36 @@ struct SettingsView: View {
             .accessibilityHint(isHealthKitSyncEnabled ? "Disable HealthKit synchronization" : "Enable HealthKit synchronization")
             .accessibilityValue(isHealthKitSyncEnabled ? "On" : "Off")
             
-            // MARK: HEALTHKIT ENABLED
             if isHealthKitSyncEnabled && !healthKitManager.isReadAuthorized && !healthKitManager.isWriteAuthorized {
-                            Button("Grant HealthKit Permission") {
-                                Task {
-                                    do {
-                                        try await healthKitManager.requestAuthorization()
-                                    } catch {
-                                        showAuthorizationError = true
-                                    }
-                                }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .fontDesign(.serif)
-                            .foregroundStyle(.primary)
-                            .accessibilityLabel("Grant HealthKit permission")
-                            .accessibilityHint("Double-tap to request HealthKit permissions")
-                            .accessibilityAddTraits(.isButton)
-                            .padding(.vertical, 2)
-                            .padding(.bottom, 4)
-                
+                Button("Grant HealthKit Permission") {
+                    Task {
+                        do {
+                            try await healthKitManager.requestAuthorization()
+                        } catch {
+                            showAuthorizationError = true
+                        }
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .fontDesign(.serif)
+                .foregroundStyle(.primary)
+                .accessibilityLabel("Grant HealthKit permission")
+                .accessibilityHint("Double-tap to request HealthKit permissions")
+                .accessibilityAddTraits(.isButton)
+                .padding(.vertical, 2)
+                .padding(.bottom, 4)
             } else if isHealthKitSyncEnabled && healthKitManager.isReadAuthorized {
                 Text("HealthKit sync is enabled.")
                     .font(.body)
                     .fontDesign(.serif)
                     .foregroundStyle(.green)
-            } else if !isHealthKitSyncEnabled && healthKitManager.isReadAuthorized{
+            } else if !isHealthKitSyncEnabled && healthKitManager.isReadAuthorized {
                 Text("HealthKit sync is disabled.")
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .fontDesign(.serif)
             }
-        }, header: {
+        } header: {
             Text("HealthKit Sync")
                 .font(.title3)
                 .fontWeight(.medium)
@@ -343,9 +304,8 @@ struct SettingsView: View {
                 .foregroundStyle(themeColor)
                 .dynamicTypeSize(.medium)
                 .accessibilityAddTraits(.isHeader)
-        })
-        
-        // MARK:  HealthKit authorization alert
+        }
+        // HealthKit authorization alert
         .alert("Authorization Required", isPresented: $showAuthorizationError) {
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -356,14 +316,16 @@ struct SettingsView: View {
         } message: {
             Text("Please grant HealthKit permission in Settings to enable syncing.")
                 .accessibilityLabel("HealthKit authorization required")
-        } .fontDesign(.serif)
+        }
+        .fontDesign(.serif)
     }
     
-    // MARK:  MARK: Account settings section for signing out.
+    // MARK: ACCOUNT SECTION
+    /// Account settings section for signing out.
     private var accountSection: some View {
         Section {
             HStack {
-                ZStack{
+                ZStack {
                     Rectangle()
                         .fill(.green)
                         .frame(width: 35, height: 35)
@@ -377,7 +339,7 @@ struct SettingsView: View {
                 Text("Account Sign Out")
                     .foregroundStyle(.primary)
                     .fontDesign(.serif)
-                Spacer( )
+                Spacer()
                 Button("Sign Out", role: .destructive) {
                     showSignOutConfirmation = true
                 }
@@ -406,15 +368,15 @@ struct SettingsView: View {
                 .dynamicTypeSize(.medium)
                 .accessibilityAddTraits(.isHeader)
         }
-        
     }
     
-    // MARK:  Support section with contact and bug report links.
+    // MARK: SUPPORT SECTION
+    /// Support section with contact and bug report links.
     private var supportSection: some View {
         Section {
             // Contact support link
             HStack {
-                ZStack{
+                ZStack {
                     Rectangle()
                         .fill(.blue)
                         .frame(width: 35, height: 35)
@@ -425,7 +387,7 @@ struct SettingsView: View {
                         .frame(width: 20, height: 20)
                         .foregroundStyle(.white)
                 }
-                Link("Contact Support or Request Feature", destination: URL(string: "mailto:support@FitSynchub.com")!)
+                Link("Contact Support or Request Feature", destination: URL(string: "mailto:support@fitsynchub.com")!)
                     .foregroundStyle(.primary)
                     .accessibilityIdentifier("contactSupportLink")
                     .accessibilityLabel("Contact support")
@@ -433,7 +395,7 @@ struct SettingsView: View {
             }
             // Report a bug link
             HStack {
-                ZStack{
+                ZStack {
                     Rectangle()
                         .fill(.blue)
                         .frame(width: 35, height: 35)
@@ -444,7 +406,7 @@ struct SettingsView: View {
                         .frame(width: 20, height: 20)
                         .foregroundStyle(.white)
                 }
-                Link("Report a Bug", destination: URL(string: "mailto:support@MoveSynchub.com")!)
+                Link("Report a Bug", destination: URL(string: "mailto:support@fitsynchub.com")!)
                     .foregroundStyle(.primary)
                     .accessibilityIdentifier("reportBugLink")
                     .accessibilityLabel("Report a bug")
@@ -458,20 +420,22 @@ struct SettingsView: View {
                 .foregroundStyle(themeColor)
                 .dynamicTypeSize(.medium)
                 .accessibilityAddTraits(.isHeader)
-        } .fontDesign(.serif)
+        }
+        .fontDesign(.serif)
     }
     
-    // MARK:  About section with app version and legal links.
+    // MARK: ABOUT SECTION
+    /// About section with app version and legal links.
     private var aboutSection: some View {
         Section {
-            HStack{
-                // MARK:  Privacy policy link
-                ReusableLinkView(iconName: "hand.raised", linkText: "Privacy & Security Policy", destinationURL: URL(string: "https://www.google.com/legal/privacy/policy/html/gpc.html")!, accessibilityIdentifier: "Privacy Policy Link", accessibilityLabel: "Privacy Policy", accessibilityHint: "Open the apps Privacy policy.")
+            // Privacy policy link
+            HStack {
+                ReusableLinkView(iconName: "hand.raised", linkText: "Privacy & Security Policy", destinationURL: URL(string: "https://fitsynchub.com/privacy")!, accessibilityIdentifier: "Privacy Policy Link", accessibilityLabel: "Privacy Policy", accessibilityHint: "Open the app's Privacy policy.")
             }
             
-            // MARK:  App version info
+            // App version info
             HStack {
-                ZStack{
+                ZStack {
                     Rectangle()
                         .fill(.green)
                         .frame(width: 35, height: 35)
@@ -494,8 +458,8 @@ struct SettingsView: View {
             .accessibilityLabel("App version")
             .accessibilityValue("1.0.0")
             // Terms of use link
-            HStack{
-                ReusableLinkView(iconName: "info.circle", linkText: "Terms of Use", destinationURL: URL(string: "https://movesynchub.com/terms")!, accessibilityIdentifier: "termsLink", accessibilityLabel: "Terms of Use", accessibilityHint: "Open the apps terms of use.")
+            HStack {
+                ReusableLinkView(iconName: "info.circle", linkText: "Terms of Use", destinationURL: URL(string: "https://fitsynchub.com/terms")!, accessibilityIdentifier: "termsLink", accessibilityLabel: "Terms of Use", accessibilityHint: "Open the app's terms of use.")
             }
         } header: {
             Text("About")
@@ -504,14 +468,17 @@ struct SettingsView: View {
                 .foregroundStyle(themeColor)
                 .dynamicTypeSize(.medium)
                 .accessibilityAddTraits(.isHeader)
-        } .fontDesign(.serif)
-}
-    // MARK:  Rate the app section with a button to request an App Store review.
+        }
+        .fontDesign(.serif)
+    }
+    
+    // MARK: RATE APP SECTION
+    /// Rate the app section with a button to request an App Store review.
     private var rateAppSection: some View {
         Section {
             Button(action: requestAppReview) {
                 HStack {
-                    ZStack{
+                    ZStack {
                         Rectangle()
                             .fill(.blue)
                             .frame(width: 35, height: 35)
@@ -524,17 +491,16 @@ struct SettingsView: View {
                             .font(.system(size: 16))
                     }
                     Text("Rate FitSync")
-                    .fontDesign(.serif)
-                    .foregroundStyle(.primary)
+                        .fontDesign(.serif)
+                        .foregroundStyle(.primary)
                     Spacer()
                     Image(systemName: "arrow.up.right")
                 }
             }
             .accessibilityIdentifier("rateAppButton")
-            .accessibilityLabel("Rate MoveSync1.0 in the App Store")
+            .accessibilityLabel("Rate FitSync in the App Store")
             .accessibilityHint("Double-tap to request rating the app in the App Store")
             .accessibilityAddTraits(.isButton)
-          
         } header: {
             Text("Rate FitSync")
                 .font(.title3)
@@ -548,16 +514,6 @@ struct SettingsView: View {
     
     /// Requests an App Store review prompt using StoreKit.
     private func requestAppReview() {
-            if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
-                AppStore.requestReview(in: windowScene)
-            }
-        }
+        requestReview()
+    }
 }
-#Preview {
-    SettingsView()
-        .environment(HealthKitManager.shared)
-        .environment(AuthenticationManager.shared)
-        .environment(ErrorManager.shared)
-        .modelContainer(for: Category.self)
-}
-

@@ -80,7 +80,7 @@ struct ProfileView: View {
     @AppStorage("unitSystem") private var unitSystem: UnitSystem = .metric
     
     /// Persisted appearance setting (system, light, or dark) for the app’s color scheme.
-    @AppStorage("appearanceSetting") private var appearanceSetting: AppAppearanceSetting = .system
+    @AppStorage("appearanceSetting") private var appearanceSetting: AppearanceSetting = .system
     
     /// The computed theme color, derived from the stored hex string or defaulting to blue.
     private var themeColor: Color {
@@ -507,19 +507,33 @@ struct ProfileView: View {
 }
 // Fallback appearance enum if not provided elsewhere in the project
 // This ensures ProfileView compiles even if AppAppearanceSetting is missing.
-public enum AppAppearanceSetting: String, CaseIterable, Codable {
-    case system
-    case light
-    case dark
-
+//MARK: APPEARANCE SETTING
+/// An enumeration of appearance settings for the app’s color scheme, used in the settings picker.
+/// Conforms to `CaseIterable` and `Identifiable` for SwiftUI picker compatibility.
+enum AppearanceSetting: String, CaseIterable, Identifiable {
+    /// Follows the system’s light or dark mode.
+    case system = "System Default"
+    /// Forces light mode.
+    case light = "Light Mode"
+    /// Forces dark mode.
+    case dark = "Dark Mode"
+    
+    /// A unique identifier for the appearance setting.
+    var id: String { self.rawValue }
+    
+    /// The display name for the picker UI.
+    var displayAppearance: String {
+        return self.rawValue
+    }
+    /// The corresponding SwiftUI color scheme, or nil for system default.
     var colorScheme: ColorScheme? {
         switch self {
-        case .system:
-            return nil
         case .light:
             return .light
         case .dark:
             return .dark
+        case .system:
+            return nil
         }
     }
 }
