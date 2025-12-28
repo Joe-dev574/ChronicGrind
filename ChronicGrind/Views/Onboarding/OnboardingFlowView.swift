@@ -53,12 +53,12 @@ struct OnboardingFlowView: View {
                 .animation(.easeInOut(duration: 0.6), value: true)
                 
                 // Welcome text with increased size and Dynamic Type support
-                Text("Welcome to FitSync!")
+                Text("Welcome to ChronicGrind!")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(themeColor)
-                    .accessibilityHint("Introduction to the FitSync app.")
+                    .accessibilityHint("Introduction to the ChronicGrind app.")
                 
                 // Feature list with aligned icons and improved spacing
                 VStack(alignment: .leading, spacing: 16) {
@@ -68,7 +68,7 @@ struct OnboardingFlowView: View {
                 }
                 .padding(.horizontal, 40)
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("FitSync features: Create custom workouts, track HR zones, and upgrade for Watch control.")
+                .accessibilityLabel("ChronicGrind features: Create custom workouts, track HR zones, and upgrade for Watch control.")
                 
                 Spacer()
                 

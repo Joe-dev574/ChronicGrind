@@ -7,10 +7,6 @@
 
 import SwiftUI
 import StoreKit
-import Combine
-import Foundation
-import OSLog
-
 
 struct SubscriptionView: View {
     // View model encapsulates StoreKit 2 logic for subscriptions.
@@ -87,6 +83,8 @@ struct SubscriptionView: View {
                                 .buttonStyle(.borderedProminent)
                                 .disabled(purchaseManager.isSubscribed || purchaseManager.isPurchasing)
                                 .opacity(purchaseManager.isSubscribed || purchaseManager.isPurchasing ? 0.7 : 1)
+                                .accessibilityLabel(purchaseManager.isSubscribed ? "Subscribed" : "Upgrade to Premium")
+                                .accessibilityHint("Tap to purchase the premium subscription")
                                 
                                 if purchaseManager.isPurchasing {
                                     ProgressView("Processing…")
@@ -100,6 +98,42 @@ struct SubscriptionView: View {
                                         .multilineTextAlignment(.center)
                                 }
                             }
+                            
+                            // Restore Purchases button
+                            Button {
+                                Task { await purchaseManager.restorePurchases() }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "arrow.clockwise.circle")
+                                    Text("Restore Purchases")
+                                }
+                                .padding(7)
+                                .fontDesign(.serif)
+                                .fontWeight(.bold)
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+                            .accessibilityLabel("Restore Purchases")
+                            .accessibilityHint("Tap to restore any previous purchases")
+                            
+                            // Manage Subscriptions button (iOS 16+)
+                            if #available(iOS 16.0, *) {
+                                Button {
+                                    showManageSubscriptions = true
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "gearshape")
+                                        Text("Manage Subscriptions")
+                                    }
+                                    .padding(7)
+                                    .fontDesign(.serif)
+                                    .fontWeight(.bold)
+                                    .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.bordered)
+                                .accessibilityLabel("Manage Subscriptions")
+                                .accessibilityHint("Tap to manage your subscriptions")
+                            }
                         }
                         .fontDesign(.serif)
                         .padding()
@@ -107,7 +141,7 @@ struct SubscriptionView: View {
                     .navigationTitle("Subscription")
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar { ToolbarItem(placement: .topBarTrailing) { refreshButton } }
-                    .ifAvailableManageSubscriptionsSheet(isPresented: $showManageSubscriptions)
+                    .manageSubscriptionsSheet(isPresented: $showManageSubscriptions)
                 }
             }
         }
@@ -120,6 +154,8 @@ struct SubscriptionView: View {
             Image(systemName: "arrow.clockwise")
         }
         .help("Refresh product and entitlement state")
+        .accessibilityLabel("Refresh")
+        .accessibilityHint("Tap to refresh subscription status")
     }
 }
 
@@ -195,15 +231,3 @@ private struct AdvancedFeatureView: View {
         .accessibilityLabel("Advanced features unlocked")
     }
 }
-
-private extension View {
-    @ViewBuilder
-    func ifAvailableManageSubscriptionsSheet(isPresented: Binding<Bool>) -> some View {
-        if #available(iOS 16.0, *) {
-            self.manageSubscriptionsSheet(isPresented: isPresented)
-        } else {
-            self
-        }
-    }
-}
-

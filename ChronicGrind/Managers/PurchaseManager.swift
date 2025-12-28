@@ -8,7 +8,6 @@
 import StoreKit
 import OSLog
 import SwiftUI
-import Observation
 
 #if os(watchOS)
 import WatchKit
@@ -37,7 +36,7 @@ final class PurchaseManager {
     
     // MARK: - Private
     private let logger = Logger(subsystem: "com.tnt.ChronicGrindShared", category: "PurchaseManager")
-    private var transactionListenerTask: Task<Void, Never>?
+    private nonisolated var transactionListenerTask: Task<Void, Never>?
     
     private init() {
         Task { await refresh() }
@@ -45,10 +44,7 @@ final class PurchaseManager {
     }
     
     deinit {
-        // Fix: Hop to main actor for isolated property access
-        Task { @MainActor in
-            transactionListenerTask?.cancel()
-        }
+        transactionListenerTask?.cancel()
     }
     
     // MARK: - Public Methods

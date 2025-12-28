@@ -33,23 +33,6 @@ struct WorkoutDetailView: View {
         return formatter
     }()
     
-    // MARK: - Helper Methods
-    
-    /// Converts a heart rate zone integer to a descriptive string.
-    /// - Parameter zone: The heart rate zone number (optional).
-    /// - Returns: A string describing the zone or nil if zone is nil.
-    private func zoneDescription(for zone: Int?) -> String? {
-        guard let zone = zone else { return nil }
-        switch zone {
-        case 1: return "Very Light"
-        case 2: return "Light"
-        case 3: return "Moderate"
-        case 4: return "Hard"
-        case 5: return "Maximum"
-        default: return "Unknown"
-        }
-    }
-    
     // MARK: - Body
     
     var body: some View {
@@ -182,38 +165,29 @@ struct WorkoutDetailView: View {
     private var exercisesSection: some View {
         Section {
             let accent = workout.category?.categoryColor.color ?? .secondary
+            let baseCount = workout.sortedExercises.count
             let hasRounds = workout.roundsEnabled && workout.roundsQuantity > 1
-            let baseCount = max(workout.sortedExercises.count, 1)
             
-            if workout.effectiveExercises.isEmpty {
-                Text("No exercises added yet.")
-                    .font(.callout)
-                    .fontDesign(.serif)
-                    .italic()
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel("No exercises added")
-            } else {
-                if hasRounds {
-                    Label("\(workout.roundsQuantity) Rounds", systemImage: "repeat")
-                        .font(.subheadline.bold())
+            if hasRounds {
+                Label("\(workout.roundsQuantity) Rounds", systemImage: "repeat")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(accent)
+                    .accessibilityLabel("Number of rounds")
+                    .accessibilityValue("\(workout.roundsQuantity) rounds")
+            }
+            ForEach(workout.effectiveExercises.indices, id: \.self) { index in
+                let exercise = workout.effectiveExercises[index]
+                let roundNumber = hasRounds ? (index / baseCount + 1) : nil
+                HStack(spacing: 10) {
+                    Image(systemName: "figure.strengthtraining.traditional")
                         .foregroundStyle(accent)
-                        .accessibilityLabel("Number of rounds")
-                        .accessibilityValue("\(workout.roundsQuantity) rounds")
+                        .accessibilityHidden(true) // Decorative icon.
+                    Text(roundNumber != nil ? "Round \(roundNumber!): \(exercise.name)" : exercise.name)
+                        .foregroundStyle(.primary)
                 }
-                ForEach(workout.effectiveExercises.indices, id: \.self) { index in
-                    let exercise = workout.effectiveExercises[index]
-                    let roundNumber = hasRounds ? (index / baseCount + 1) : nil
-                    HStack(spacing: 10) {
-                        Image(systemName: "figure.strengthtraining.traditional")
-                            .foregroundStyle(accent)
-                            .accessibilityHidden(true) // Decorative icon.
-                        Text(roundNumber != nil ? "Round \(roundNumber!): \(exercise.name)" : exercise.name)
-                            .foregroundStyle(.primary)
-                    }
-                    .font(.system(size: 16))
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel(roundNumber != nil ? "Round \(roundNumber!), \(exercise.name)" : exercise.name)
-                }
+                .font(.system(size: 16))
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(roundNumber != nil ? "Round \(roundNumber!), \(exercise.name)" : exercise.name)
             }
         } header: {
             Text("Exercises")
@@ -230,8 +204,7 @@ struct WorkoutDetailView: View {
     private var summarySection: some View {
         Section {
             if let fastestTime = workout.fastestTime, fastestTime > 0 {
-                let fastestDuration = workout.fastestDuration
-                let fastest = "\(0.00) min, \(1.00) s"
+                let formattedFastest = formatDuration(fastestTime * 60)
                 
                 HStack {
                     Image(systemName: "star.fill")
@@ -240,11 +213,11 @@ struct WorkoutDetailView: View {
                     Text("Fastest Time:")
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text(fastest)
+                    Text(formattedFastest)
                         .foregroundStyle(.primary)
                 }
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("Fastest Time: \(fastest)")
+                .accessibilityLabel("Fastest Time: \(formattedFastest)")
             } else {
                 HStack {
                     Image(systemName: "star")
@@ -361,6 +334,40 @@ struct WorkoutDetailView: View {
             .contentShape(Rectangle())
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Workout on \(historyItem.date, style: .date), Duration: \(historyItem.formattedDuration)")
+        }
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// Converts a heart rate zone integer to a descriptive string.
+    /// - Parameter zone: The heart rate zone number (optional).
+    /// - Returns: A string describing the zone or nil if zone is nil.
+    private func zoneDescription(for zone: Int?) -> String? {
+        guard let zone = zone else { return nil }
+        switch zone {
+        case 1: return "Very Light"
+        case 2: return "Light"
+        case 3: return "Moderate"
+        case 4: return "Hard"
+        case 5: return "Maximum"
+        default: return "Unknown"
+        }
+    }
+    
+    // MARK: - Duration Formatting
+    /// Formats a duration in seconds into a human-readable string.
+    /// Examples: 75 -> "1m 15s", 3661 -> "1h 1m 1s"
+    private func formatDuration(_ seconds: Double) -> String {
+        let totalSeconds = max(0, Int(seconds.rounded()))
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let secs = totalSeconds % 60
+        if hours > 0 {
+            return "\(hours)h \(minutes)m \(secs)s"
+        } else if minutes > 0 {
+            return "\(minutes)m \(secs)s"
+        } else {
+            return "\(secs)s"
         }
     }
 }
